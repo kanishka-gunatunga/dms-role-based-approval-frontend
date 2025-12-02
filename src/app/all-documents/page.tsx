@@ -104,6 +104,7 @@ interface TableItem {
   type: string;
   created_by: string;
   document_preview: string;
+  // all_approvers_accepted?: boolean;
 }
 
 interface ShareItem {
@@ -122,6 +123,7 @@ interface EditDocumentItem {
   category: Category;
   description: string;
   meta_tags: string;
+  all_approvers_accepted: boolean;
 }
 
 interface Attribute {
@@ -256,9 +258,13 @@ export default function AllDocTable() {
     deleteBulkFileModel: false,
     allDocShareModel: false,
     viewModel: false,
+    approvalPendingModel: false,
   });
+
+  const [showApprovalMessage, setShowApprovalMessage] = useState(false);
+
   const [generatedLink, setGeneratedLink] = useState<string>("");
-    const [generatedID, setGeneratedID] =useState<number>(0);
+  const [generatedID, setGeneratedID] = useState<number>(0);
   const [selectedDocumentData, setSelectedDocumentData] = useState<{
     name: string;
     category: string;
@@ -359,6 +365,37 @@ export default function AllDocTable() {
     }
   };
 
+
+  const handleEditClick = async (id: number, name: string) => {
+    try {
+      const response = await getWithAuth(`edit-document/${id}`);
+
+      console.log("edit response:", response);
+
+      if (!response) return;
+
+      // NOT approved → show simple message modal
+      if (response.all_approvers_accepted === false) {
+        // you may want to store the id + name for message display
+        setSelectedDocumentId(id);
+        setSelectedDocumentName(name);
+
+        handleOpenModal("approvalPendingModel");
+        return;
+      }
+
+      // Approved → open real edit modal
+      setEditDocument(response);
+      setSelectedCategoryIdEdit(response.category.id.toString());
+      handleOpenModal("editModel", id, name);
+
+
+    } catch (error) {
+      console.error("Error fetching edit data:", error);
+    }
+  };
+
+
   useEffect(() => {
     if (editDocument?.meta_tags) {
       const parsedTags = JSON.parse(editDocument.meta_tags);
@@ -435,9 +472,9 @@ export default function AllDocTable() {
     const sortedData = [...dummyData].sort((a, b) =>
       sortAsc
         ? new Date(a.created_date).getTime() -
-          new Date(b.created_date).getTime()
+        new Date(b.created_date).getTime()
         : new Date(b.created_date).getTime() -
-          new Date(a.created_date).getTime()
+        new Date(a.created_date).getTime()
     );
     setDummyData(sortedData);
   };
@@ -478,6 +515,9 @@ export default function AllDocTable() {
       return updatedNames;
     });
   };
+
+
+
 
   const handleOpenModal = (
     modalName: keyof typeof modalStates,
@@ -752,10 +792,10 @@ export default function AllDocTable() {
 
   const filteredData = filterValue
     ? allShareData.filter(
-        (item) =>
-          item.email &&
-          item.email.toLowerCase().includes(filterValue.toLowerCase())
-      )
+      (item) =>
+        item.email &&
+        item.email.toLowerCase().includes(filterValue.toLowerCase())
+    )
     : allShareData;
   const totalItemsShare = filteredData.length;
   const totalPagesShare = Math.ceil(totalItemsShare / itemsPerPage);
@@ -957,7 +997,7 @@ export default function AllDocTable() {
 
   const handleDeleteComment = async (id: string) => {
     try {
-      const response = await  getWithAuth(`delete-comment/${id}/${userId}`);
+      const response = await getWithAuth(`delete-comment/${id}/${userId}`);
       if (response.status === "success") {
         setToastType("success");
         fetchComments(selectedDocumentId!);
@@ -1098,7 +1138,7 @@ export default function AllDocTable() {
 
   const handleDeleteShareableLink = async (id: number) => {
     try {
-      const response = await  getWithAuth(
+      const response = await getWithAuth(
         `delete-shareble-link/${id}/${userId}`
       );
       // console.log(`delete-shareble-link/${id}/${userId}`);
@@ -1208,7 +1248,7 @@ export default function AllDocTable() {
     }
 
     try {
-      const response = await  getWithAuth(`delete-document/${id}/${userId}`);
+      const response = await getWithAuth(`delete-document/${id}/${userId}`);
 
       if (response.status === "success") {
         handleCloseModal("deleteFileModel");
@@ -1292,20 +1332,33 @@ export default function AllDocTable() {
     return validationErrors;
   };
 
+  // const handleGetEditData = async (id: number) => {
+  //   try {
+  //     const response = await getWithAuth(`edit-document/${id}`);
+  //     console.log("response edit: ", response)
+  //     if (Array.isArray(response) && response.length > 0) {
+  //       setEditDocument(response[0]);
+  //       setSelectedCategoryIdEdit(response[0]?.category?.id.toString() || "");
+  //     } else {
+  //       console.error("Response is not a valid array or is empty");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error :", error);
+  //   }
+  // };
+
   const handleGetEditData = async (id: number) => {
     try {
       const response = await getWithAuth(`edit-document/${id}`);
-      // console.log("response edit: ", response)
-      if (Array.isArray(response) && response.length > 0) {
-        setEditDocument(response[0]);
-        setSelectedCategoryIdEdit(response[0]?.category?.id.toString() || "");
-      } else {
-        console.error("Response is not a valid array or is empty");
-      }
+      console.log("response edit:", response);
+
+      setEditDocument(response);
+      setSelectedCategoryIdEdit(response.category.id.toString());
     } catch (error) {
-      console.error("Error :", error);
+      console.error("Error:", error);
     }
   };
+
 
   // const handleGetViewData = async (id: number) => {
   //   try {
@@ -1564,13 +1617,13 @@ export default function AllDocTable() {
         shareDocumentData?.is_downloadable || ""
       );
       formData.append("user", userId || "");
-        console.log("FormData contents:");
+      console.log("FormData contents:");
       for (const [key, value] of formData.entries()) {
         console.log(key, value);
       }
       console.log("Sending POST request to:", `document-share/${id}`);
       const response = await postWithAuth(`document-share/${id}`, formData);
-         console.log("API response:", response);
+      console.log("API response:", response);
       setShareDocumentData(null);
       setUsers([]);
       setSelectedUserIds([]);
@@ -1689,7 +1742,7 @@ export default function AllDocTable() {
     }
 
     try {
-      const response = await  getWithAuth(
+      const response = await getWithAuth(
         `delete-share/${selectedShareDocUserType}/${selectedShareDocId}`
       );
       if (response.status === "success") {
@@ -1929,8 +1982,8 @@ export default function AllDocTable() {
                     title={
                       filterData.category
                         ? categoryDropDownData.find(
-                            (item) => item.id.toString() === filterData.category
-                          )?.category_name
+                          (item) => item.id.toString() === filterData.category
+                        )?.category_name
                         : "Select Category"
                     }
                     className="custom-dropdown-text-start text-start w-100"
@@ -2046,31 +2099,31 @@ export default function AllDocTable() {
                             "All Documents",
                             "Share Document"
                           ) && (
-                            <Dropdown.Item
-                              onClick={() =>
-                                handleOpenModal("allDocShareModel")
-                              }
-                              className="py-2"
-                            >
-                              <IoShareSocial className="me-2" />
-                              Share
-                            </Dropdown.Item>
-                          )}
+                              <Dropdown.Item
+                                onClick={() =>
+                                  handleOpenModal("allDocShareModel")
+                                }
+                                className="py-2"
+                              >
+                                <IoShareSocial className="me-2" />
+                                Share
+                              </Dropdown.Item>
+                            )}
                           {hasPermission(
                             permissions,
                             "All Documents",
                             "Delete Document"
                           ) && (
-                            <Dropdown.Item
-                              onClick={() =>
-                                handleOpenModal("deleteBulkFileModel")
-                              }
-                              className="py-2"
-                            >
-                              <AiFillDelete className="me-2" />
-                              Delete
-                            </Dropdown.Item>
-                          )}
+                              <Dropdown.Item
+                                onClick={() =>
+                                  handleOpenModal("deleteBulkFileModel")
+                                }
+                                className="py-2"
+                              >
+                                <AiFillDelete className="me-2" />
+                                Delete
+                              </Dropdown.Item>
+                            )}
                         </DropdownButton>
                       ) : (
                         <Checkbox
@@ -2155,39 +2208,43 @@ export default function AllDocTable() {
                               "All Documents",
                               "View Documents"
                             ) && (
-                              <Dropdown.Item
-                                className="py-2"
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "viewModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                              >
-                                <IoEye className="me-2" />
-                                View
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  className="py-2"
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "viewModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                >
+                                  <IoEye className="me-2" />
+                                  View
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Edit Document"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "editModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <MdModeEditOutline className="me-2" />
-                                Edit
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+
+                                  // onClick={() =>
+                                  //   handleOpenModal(
+                                  //     "editModel",
+                                  //     item.id,
+                                  //     item.name
+                                  //   )
+
+
+                                  // }
+                                  onClick={() => handleEditClick(item.id, item.name)}
+                                  className="py-2"
+                                >
+                                  <MdModeEditOutline className="me-2" />
+                                  Edit
+                                </Dropdown.Item>
+                              )}
 
                             {["pdf", "docx", "xlsx", "pptx", "txt"].includes(
                               item.type
@@ -2370,205 +2427,205 @@ export default function AllDocTable() {
                               "All Documents",
                               "Share Document"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "shareDocumentModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <IoShareSocial className="me-2" />
-                                Share
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "shareDocumentModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <IoShareSocial className="me-2" />
+                                  Share
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Manage Sharable Link"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleGetShareableLinkModel(item.id)
-                                }
-                                className="py-2"
-                              >
-                                <MdOutlineInsertLink className="me-2" />
-                                Get Shareable Link
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleGetShareableLinkModel(item.id)
+                                  }
+                                  className="py-2"
+                                >
+                                  <MdOutlineInsertLink className="me-2" />
+                                  Get Shareable Link
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Download Document"
                             ) && (
-                              <Dropdown.Item className="py-2">
-                                <Link
-                                  href={"#"}
-                                  style={{ color: "#212529" }}
-                                  onClick={() =>
-                                    handleDownload(item.id, userId)
-                                  }
-                                >
-                                  <MdFileDownload className="me-2" />
-                                  Download
-                                </Link>
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item className="py-2">
+                                  <Link
+                                    href={"#"}
+                                    style={{ color: "#212529" }}
+                                    onClick={() =>
+                                      handleDownload(item.id, userId)
+                                    }
+                                  >
+                                    <MdFileDownload className="me-2" />
+                                    Download
+                                  </Link>
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Upload New Version file"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "uploadNewVersionFileModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <MdUpload className="me-2" />
-                                Upload New Version file
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "uploadNewVersionFileModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <MdUpload className="me-2" />
+                                  Upload New Version file
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Version History"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "versionHistoryModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <GoHistory className="me-2" />
-                                Version History
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "versionHistoryModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <GoHistory className="me-2" />
+                                  Version History
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Comment"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "commentModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <BiSolidCommentDetail className="me-2" />
-                                Comment
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "commentModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <BiSolidCommentDetail className="me-2" />
+                                  Comment
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Add Reminder"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "addReminderModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <BsBellFill className="me-2" />
-                                Add Reminder
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "addReminderModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <BsBellFill className="me-2" />
+                                  Add Reminder
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Send Email"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "sendEmailModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <MdEmail className="me-2" />
-                                Send Email
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "sendEmailModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <MdEmail className="me-2" />
+                                  Send Email
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Download Document"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "removeIndexingModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <AiOutlineZoomOut className="me-2" />
-                                Remove From Search
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "removeIndexingModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <AiOutlineZoomOut className="me-2" />
+                                  Remove From Search
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Archive Document"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "docArchivedModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <FaArchive className="me-2" />
-                                Archive
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "docArchivedModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <FaArchive className="me-2" />
+                                  Archive
+                                </Dropdown.Item>
+                              )}
                             {hasPermission(
                               permissions,
                               "All Documents",
                               "Delete Document"
                             ) && (
-                              <Dropdown.Item
-                                onClick={() =>
-                                  handleOpenModal(
-                                    "deleteFileModel",
-                                    item.id,
-                                    item.name
-                                  )
-                                }
-                                className="py-2"
-                              >
-                                <AiFillDelete className="me-2" />
-                                Delete
-                              </Dropdown.Item>
-                            )}
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    handleOpenModal(
+                                      "deleteFileModel",
+                                      item.id,
+                                      item.name
+                                    )
+                                  }
+                                  className="py-2"
+                                >
+                                  <AiFillDelete className="me-2" />
+                                  Delete
+                                </Dropdown.Item>
+                              )}
                           </DropdownButton>
                         </td>
                         {/* <td>
@@ -3194,9 +3251,9 @@ export default function AllDocTable() {
                         defaultValue={
                           shareableLinkDataSetting.expire_date_time
                             ? dayjs(
-                                shareableLinkDataSetting.expire_date_time,
-                                "YYYY-MM-DD HH:mm:ss"
-                              )
+                              shareableLinkDataSetting.expire_date_time,
+                              "YYYY-MM-DD HH:mm:ss"
+                            )
                             : null
                         }
                         onChange={(value, dateString) => {
@@ -3724,7 +3781,7 @@ export default function AllDocTable() {
                   type="file"
                   className="form-control p-1"
                   id="newVersionDocument"
-                 
+
                   onChange={handleNewVersionFileChange}
                   required
                 ></input>
@@ -5595,7 +5652,7 @@ export default function AllDocTable() {
             </div>
           </Modal.Header>
           <Modal.Body className="p-2 p-lg-4">
-           <div className="d-flex preview-container">
+            <div className="d-flex preview-container">
               {viewDocument && (
                 <>
                   {/* Image Preview */}
@@ -5606,36 +5663,36 @@ export default function AllDocTable() {
                       width={600}
                       height={600}
                     />
-                  ) : 
-                  /* TXT / CSV / LOG Preview */
-                  ["txt", "csv", "log"].includes(viewDocument.type) ? (
-                    <div className="text-preview" style={{ width: "100%" }}>
-                      <iframe
-                        src={viewDocument.url}
-                        title="Text Preview"
-                        style={{ width: "100%", height: "500px", border: "1px solid #ccc", background: "#fff" }}
-                      ></iframe>
-                    </div>
-                  ) : 
-                  /* PDF or Office Docs */
-                  (viewDocument.type === "pdf" || viewDocument.enable_external_file_view === 1) ? (
-                    <div
-                      className="iframe-container"
-                      data-watermark={`Confidential\nDo Not Copy\n${userName}\n${currentDateTime}`}
-                    >
-                      <iframe
-                        src={
-                          viewDocument.type === "pdf"
-                            ? viewDocument.url
-                            : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewDocument.url)}`
-                        }
-                        title="Document Preview"
-                        style={{ width: "100%", height: "500px", border: "none" }}
-                      ></iframe>
-                    </div>
-                  ) : (
-                    <p>No preview available for this document type.</p>
-                  )}
+                  ) :
+                    /* TXT / CSV / LOG Preview */
+                    ["txt", "csv", "log"].includes(viewDocument.type) ? (
+                      <div className="text-preview" style={{ width: "100%" }}>
+                        <iframe
+                          src={viewDocument.url}
+                          title="Text Preview"
+                          style={{ width: "100%", height: "500px", border: "1px solid #ccc", background: "#fff" }}
+                        ></iframe>
+                      </div>
+                    ) :
+                      /* PDF or Office Docs */
+                      (viewDocument.type === "pdf" || viewDocument.enable_external_file_view === 1) ? (
+                        <div
+                          className="iframe-container"
+                          data-watermark={`Confidential\nDo Not Copy\n${userName}\n${currentDateTime}`}
+                        >
+                          <iframe
+                            src={
+                              viewDocument.type === "pdf"
+                                ? viewDocument.url
+                                : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewDocument.url)}`
+                            }
+                            title="Document Preview"
+                            style={{ width: "100%", height: "500px", border: "none" }}
+                          ></iframe>
+                        </div>
+                      ) : (
+                        <p>No preview available for this document type.</p>
+                      )}
                 </>
               )}
             </div>
@@ -5714,35 +5771,35 @@ export default function AllDocTable() {
                 "All Documents",
                 "Share Document"
               ) && (
-                <button
-                  onClick={() =>
-                    handleOpenModal(
-                      "shareDocumentModel",
-                      viewDocument?.id,
-                      viewDocument?.name
-                    )
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <IoShareSocial className="me-2" />
-                  Share
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleOpenModal(
+                        "shareDocumentModel",
+                        viewDocument?.id,
+                        viewDocument?.name
+                      )
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <IoShareSocial className="me-2" />
+                    Share
+                  </button>
+                )}
               {hasPermission(
                 permissions,
                 "All Documents",
                 "Manage Sharable Link"
               ) && (
-                <button
-                  onClick={() =>
-                    handleGetShareableLinkModel(viewDocument?.id || 0)
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <IoShareSocial className="me-2" />
-                  Get Shareable Link
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleGetShareableLinkModel(viewDocument?.id || 0)
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <IoShareSocial className="me-2" />
+                    Get Shareable Link
+                  </button>
+                )}
               {hasPermission(
                 permissions,
                 "All Documents",
@@ -5764,39 +5821,39 @@ export default function AllDocTable() {
                 "All Documents",
                 "Upload New Version file"
               ) && (
-                <button
-                  onClick={() =>
-                    handleOpenModal(
-                      "uploadNewVersionFileModel",
-                      viewDocument?.id,
-                      viewDocument?.name
-                    )
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <MdUpload className="me-2" />
-                  Upload New Version file
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleOpenModal(
+                        "uploadNewVersionFileModel",
+                        viewDocument?.id,
+                        viewDocument?.name
+                      )
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <MdUpload className="me-2" />
+                    Upload New Version file
+                  </button>
+                )}
               {hasPermission(
                 permissions,
                 "All Documents",
                 "Version History"
               ) && (
-                <button
-                  onClick={() =>
-                    handleOpenModal(
-                      "versionHistoryModel",
-                      viewDocument?.id,
-                      viewDocument?.name
-                    )
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <GoHistory className="me-2" />
-                  Version History
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleOpenModal(
+                        "versionHistoryModel",
+                        viewDocument?.id,
+                        viewDocument?.name
+                      )
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <GoHistory className="me-2" />
+                    Version History
+                  </button>
+                )}
               {hasPermission(permissions, "All Documents", "Comment") && (
                 <button
                   onClick={() =>
@@ -5847,58 +5904,58 @@ export default function AllDocTable() {
                 "All Documents",
                 "Remove From Search"
               ) && (
-                <button
-                  onClick={() =>
-                    handleOpenModal(
-                      "removeIndexingModel",
-                      viewDocument?.id,
-                      viewDocument?.name
-                    )
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <AiOutlineZoomOut className="me-2" />
-                  Remove From Search
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleOpenModal(
+                        "removeIndexingModel",
+                        viewDocument?.id,
+                        viewDocument?.name
+                      )
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <AiOutlineZoomOut className="me-2" />
+                    Remove From Search
+                  </button>
+                )}
               {hasPermission(
                 permissions,
                 "All Documents",
                 "Archive Document"
               ) && (
-                <button
-                  onClick={() =>
-                    handleOpenModal(
-                      "docArchivedModel",
-                      viewDocument?.id,
-                      viewDocument?.name
-                    )
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <FaArchive className="me-2" />
-                  Archive
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleOpenModal(
+                        "docArchivedModel",
+                        viewDocument?.id,
+                        viewDocument?.name
+                      )
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <FaArchive className="me-2" />
+                    Archive
+                  </button>
+                )}
               {hasPermission(
                 permissions,
                 "All Documents",
                 "Delete Document"
               ) && (
-                <button
-                  onClick={() =>
-                    handleOpenModal(
-                      "deleteFileModel",
-                      viewDocument?.id,
-                      viewDocument?.name
-                    )
-                  }
-                  className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
-                >
-                  <AiFillDelete className="me-2" />
-                  Delete
-                </button>
-              )}
+                  <button
+                    onClick={() =>
+                      handleOpenModal(
+                        "deleteFileModel",
+                        viewDocument?.id,
+                        viewDocument?.name
+                      )
+                    }
+                    className="addButton me-2 bg-white text-dark border border-success rounded px-3 py-1"
+                  >
+                    <AiFillDelete className="me-2" />
+                    Delete
+                  </button>
+                )}
             </div>
           </Modal.Body>
 
@@ -6006,6 +6063,57 @@ export default function AllDocTable() {
           onClose={() => setShowToast(false)}
           type={toastType}
         />
+
+
+        <Modal
+          centered
+          show={modalStates.approvalPendingModel}
+          className="large-model"
+          onHide={() => {
+            handleCloseModal("approvalPendingModel");
+          }}
+        >
+          <Modal.Header>
+            <div className="d-flex w-100 justify-content-end">
+              <div className="col-11 d-flex flex-row">
+                <p className="mb-0" style={{ fontSize: "16px", color: "#333" }}>
+                  Approval Pending
+                </p>
+              </div>
+
+              <div className="col-1 d-flex justify-content-end">
+                <IoClose
+                  fontSize={20}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    handleCloseModal("approvalPendingModel");
+                  }}
+                />
+              </div>
+            </div>
+          </Modal.Header>
+
+          <Modal.Body className="py-3">
+            <div className="d-flex flex-column custom-scroll mb-3">
+              <p className="mb-3" style={{ fontSize: "18px", color: "#333" }}>
+                You have to wait until approvers approve this document.
+              </p>
+            </div>
+          </Modal.Body>
+
+          <Modal.Footer>
+            <div className="d-flex flex-row">
+              <button
+                onClick={() => handleCloseModal("approvalPendingModel")}
+                className="custom-icon-button button-danger px-3 py-1 rounded me-2"
+              >
+                <IoClose fontSize={16} className="me-1" /> OK
+              </button>
+            </div>
+          </Modal.Footer>
+        </Modal>
+
+
       </DashboardLayout>
     </>
   );
