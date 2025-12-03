@@ -21,7 +21,7 @@ const nextConfig = {
     {
       source: '/(.*)',
       headers: [
-        { key: 'Access-Control-Allow-Origin', value: 'http://localhost:3000/' },
+        { key: 'Access-Control-Allow-Origin', value: 'https://dms-demo-2.vercel.app' },
         { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
         { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
@@ -32,14 +32,13 @@ const nextConfig = {
             "default-src 'self'; " +
             "base-uri 'self'; " +
             "object-src 'none'; " +
-            "connect-src 'self' http://localhost:8000/; " +
+            "connect-src 'self' https://dms1.genaitech.dev; " +
             "img-src 'self' data: https:; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+            "script-src 'self' 'unsafe-inline'; " +
             "style-src 'self' 'unsafe-inline' https:; " +
             "font-src 'self' https: data:; " +
-            "frame-src http://localhost:8000 https://view.officeapps.live.com; " +
+            "frame-src https://dms1.genaitech.dev https://view.officeapps.live.com; " +
             "frame-ancestors 'none';"
-
         },
         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       ]
