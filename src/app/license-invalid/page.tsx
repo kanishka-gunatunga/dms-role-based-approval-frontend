@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
 import Paragraph from "@/components/common/Paragraph";
@@ -9,7 +8,7 @@ import { Input } from "antd";
 import { API_BASE_URL } from "@/utils/apiClient";
 import { useCompanyProfile } from "@/context/userCompanyProfile";
 
-const page = () => {
+const LicenseInvalidPage = () => {
   const [key, setKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -17,7 +16,7 @@ const page = () => {
   const [toastMessage, setToastMessage] = useState("");
   const { data } = useCompanyProfile();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!key.trim()) {
@@ -38,10 +37,10 @@ const page = () => {
         body: formData,
       });
 
-      const data = await response.json();
+      const result: { message?: string } = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "License activation failed");
+        throw new Error(result.message || "License activation failed");
       }
 
       setToastType("success");
@@ -51,9 +50,14 @@ const page = () => {
       setTimeout(() => {
         window.location.href = "/";
       }, 1200);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid license key";
+
       setToastType("error");
-      setToastMessage(error.message || "Invalid license key");
+      setToastMessage(message);
       setShowToast(true);
     } finally {
       setLoading(false);
@@ -135,4 +139,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default LicenseInvalidPage;
