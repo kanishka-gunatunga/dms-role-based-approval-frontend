@@ -11,7 +11,6 @@ export const API_BASE_URL =
 if (!API_BASE_URL) {
   throw new Error("API base URL is not defined in environment variables.");
 }
-
 export async function postWithAuth(
   endpoint: string,
   formData: FormData
@@ -28,9 +27,14 @@ export async function postWithAuth(
     });
 
     const rawResponse = await response.text();
-    // console.log(rawResponse)
+    const data = JSON.parse(rawResponse);
 
-    return JSON.parse(rawResponse);
+    if (response.status === 403 && data?.error === "LICENSE_INVALID") {
+      window.location.href = "/license-invalid";
+      return;
+    }
+
+    return data;
   } catch (error) {
     console.error("Error during POST request:", error);
     throw error;
@@ -54,11 +58,20 @@ export async function postAxiosWithAuth(
     });
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.error === "LICENSE_INVALID"
+    ) {
+      window.location.href = "/license-invalid";
+      return;
+    }
+
     console.error("Error during POST request:", error);
     throw error;
   }
 }
+
 
 export async function postWithAuthXML(
   endpoint: string,
@@ -72,38 +85,42 @@ export async function postWithAuthXML(
   xhr.upload.onprogress = (event) => {
     if (event.lengthComputable) {
       const progress = Math.round((event.loaded / event.total) * 100);
-      onProgress(progress, formData.get("upload_file")?.toString() || "Unknown");
+      onProgress(
+        progress,
+        formData.get("upload_file")?.toString() || "Unknown"
+      );
     }
   };
-  
 
-  try {
-    return new Promise((resolve, reject) => {
-      xhr.open("POST", `${API_BASE_URL}${endpoint}`, true);
-      xhr.setRequestHeader("Authorization", `Bearer ${token || ""}`);
+  return new Promise((resolve, reject) => {
+    xhr.open("POST", `${API_BASE_URL}${endpoint}`, true);
+    xhr.setRequestHeader("Authorization", `Bearer ${token || ""}`);
 
-      xhr.onload = () => {
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+
+        if (xhr.status === 403 && data?.error === "LICENSE_INVALID") {
+          window.location.href = "/license-invalid";
+          return;
+        }
+
         if (xhr.status === 200 || xhr.status === 201) {
-          const response = JSON.parse(xhr.responseText);
-          // console.log("Response from server:", response); 
-          resolve(response);
+          resolve(data);
         } else {
-          console.error(`Request failed with status ${xhr.status}`);
           reject(new Error(`Request failed with status ${xhr.status}`));
         }
-      };
+      } catch (e) {
+        reject(e);
+      }
+    };
 
-      xhr.onerror = () => {
-        console.error("Network error");
-        reject(new Error("Network error"));
-      };
+    xhr.onerror = () => {
+      reject(new Error("Network error"));
+    };
 
-      xhr.send(formData);
-    });
-  } catch (error) {
-    console.error("Error during POST request:", error);
-    throw error;
-  }
+    xhr.send(formData);
+  });
 }
 
 
@@ -119,15 +136,19 @@ export async function getWithAuth(endpoint: string): Promise<any> {
     });
 
     const rawResponse = await response.text();
-    // console.log(response)
-    return JSON.parse(rawResponse);
+    const data = JSON.parse(rawResponse);
+
+    if (response.status === 403 && data?.error === "LICENSE_INVALID") {
+      window.location.href = "/license-invalid";
+      return;
+    }
+
+    return data;
   } catch (error) {
     console.error("Error during GET request:", error);
     throw error;
   }
 }
-
-
 export async function deleteWithAuth(endpoint: string): Promise<any> {
   const token = Cookies.get("authToken");
 
@@ -140,14 +161,19 @@ export async function deleteWithAuth(endpoint: string): Promise<any> {
     });
 
     const rawResponse = await response.text();
-  
-    return JSON.parse(rawResponse);
+    const data = JSON.parse(rawResponse);
+
+    if (response.status === 403 && data?.error === "LICENSE_INVALID") {
+      window.location.href = "/license-invalid";
+      return;
+    }
+
+    return data;
   } catch (error) {
-    console.error("Error during GET request:", error);
+    console.error("Error during DELETE request:", error);
     throw error;
   }
 }
-
 
 export async function deleteAllWithAuth(
   endpoint: string,
@@ -165,11 +191,17 @@ export async function deleteAllWithAuth(
     });
 
     const rawResponse = await response.text();
-    // console.log(rawResponse)
+    const data = JSON.parse(rawResponse);
 
-    return JSON.parse(rawResponse);
+    if (response.status === 403 && data?.error === "LICENSE_INVALID") {
+      window.location.href = "/license-invalid";
+      return;
+    }
+
+    return data;
   } catch (error) {
-    console.error("Error during POST request:", error);
+    console.error("Error during DELETE request:", error);
     throw error;
   }
 }
+
