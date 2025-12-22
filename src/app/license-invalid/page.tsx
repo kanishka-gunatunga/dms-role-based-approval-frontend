@@ -1,12 +1,9 @@
 "use client";
 
-import Paragraph from "@/components/common/Paragraph";
-import Image from "next/image";
 import React, { useState } from "react";
-import ToastMessage from "@/components/common/Toast";
 import { Input } from "antd";
+import ToastMessage from "@/components/common/Toast";
 import { API_BASE_URL } from "@/utils/apiClient";
-import { useCompanyProfile } from "@/context/userCompanyProfile";
 
 const LicenseInvalidPage = () => {
   const [key, setKey] = useState("");
@@ -14,7 +11,6 @@ const LicenseInvalidPage = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<"success" | "error">("success");
   const [toastMessage, setToastMessage] = useState("");
-  const { data } = useCompanyProfile();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -40,7 +36,7 @@ const LicenseInvalidPage = () => {
       const result: { message?: string } = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "License activation failed");
+        throw new Error(result.message || "Invalid license key");
       }
 
       setToastType("success");
@@ -54,7 +50,7 @@ const LicenseInvalidPage = () => {
       const message =
         error instanceof Error
           ? error.message
-          : "Invalid license key";
+          : "License activation failed";
 
       setToastType("error");
       setToastMessage(message);
@@ -64,53 +60,28 @@ const LicenseInvalidPage = () => {
     }
   };
 
-  const imageUrl = data?.logo_url || "/logo.png";
-  const bannerUrl = data?.banner_url || "/login-image.png";
-
   return (
     <>
       <div
-        className="d-flex flex-column flex-lg-row w-100"
-        style={{ minHeight: "100svh", maxHeight: "100svh" }}
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "100vh", backgroundColor: "#F5F7FA" }}
       >
         <div
-          className="col-12 col-lg-8 d-none d-lg-block"
-          style={{
-            minHeight: "100svh",
-            maxHeight: "100svh",
-            backgroundColor: "#EBF2FB",
-          }}
+          className="p-4 p-md-5 bg-white shadow rounded"
+          style={{ width: "100%", maxWidth: 420 }}
         >
-          <Image
-            src={bannerUrl}
-            alt=""
-            width={1000}
-            height={800}
-            className="img-fluid"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        </div>
+          <h3 className="text-center mb-2 text-danger">
+            License Invalid
+          </h3>
 
-        <div
-          className="col-12 col-md-6 align-self-center col-lg-4 px-4 px-lg-5 d-flex flex-column justify-content-center align-items-center"
-          style={{ minHeight: "100svh", maxHeight: "100svh" }}
-        >
-          <Image
-            src={imageUrl}
-            alt=""
-            width={200}
-            height={150}
-            className="img-fluid mb-3 loginLogo"
-          />
+          <p className="text-center text-muted mb-4">
+            Your license is invalid or expired.  
+            Please enter a valid license key to continue.
+          </p>
 
-          <Paragraph text="Activate License" color="Paragraph" />
+          <form onSubmit={handleSubmit}>
+            <label className="mb-2">License Key</label>
 
-          <form
-            className="d-flex flex-column px-0 px-lg-3"
-            style={{ width: "100%" }}
-            onSubmit={handleSubmit}
-          >
-            <label className="mt-3">License Key</label>
             <Input.TextArea
               rows={4}
               placeholder="Paste your license key here"
@@ -120,7 +91,7 @@ const LicenseInvalidPage = () => {
 
             <button
               type="submit"
-              className="loginButton text-white mt-4"
+              className="loginButton text-white w-100 mt-4"
               disabled={loading}
             >
               {loading ? "Activating..." : "Activate License"}
